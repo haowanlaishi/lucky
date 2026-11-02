@@ -1,0 +1,18 @@
+{
+  "appId": "com.mydream.fund",
+  "appName": "lucky",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "always"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "launchAutoHide": true,
+      "backgroundColor": "#f4f6f9",
+      "showSpinner": false,
+      "splashFullScreen": true,
+      "splashImmersive": true
+    }
+  }
+}
