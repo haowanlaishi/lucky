@@ -55,7 +55,6 @@ body{font-family:-apple-system,sans-serif;background:var(--bg);color:#333;displa
 <div class="btns" id="bottom-btns"><button class="btn br" id="rb">🎲 机选填满</button><button class="btn bs" id="cf">✅ 确认选号</button></div>
 <div class="toast" id="toast">提示</div>
 <script>
-setTimeout(() => { if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SplashScreen) { window.Capacitor.Plugins.SplashScreen.hide(); } }, 1500);
 const LOT={
   ssq:{name:'双色球',desc:'红球(1-33)选6个，蓝球(1-16)选1个',groups:[
     {id:'red',name:'红球',count:6,maxMulti:20,min:1,max:33,colorClass:'red'},
@@ -82,6 +81,13 @@ let state={
   list:JSON.parse(localStorage.getItem('solo_lotto_v24')||'[]')
 };
 
+// ===== 新增：单复式独立快照缓存 =====
+const modeCache = { ssq: 'single', dlt: 'single' };
+const modeSelCache = {
+  ssq: { single: { sel: {}, locked: {} }, multi: { sel: {}, locked: {} } },
+  dlt: { single: { sel: {}, locked: {} }, multi: { sel: {}, locked: {} } }
+};
+
 const $=id=>document.getElementById(id);
 const ra=$('ra'),qp=$('qp'),pa=$('pa'),rd=$('rd'),te=$('toast'),hp=$('hp'),hl=$('hl'),badge=$('badge'),hb=$('hb'),ht=$('ht'),mp=$('mp'),ta=$('ta'),tv=$('tv'),ap=$('ap'),cp=$('cp');
 
@@ -89,7 +95,6 @@ function initState(){
   state.sel={};
   state.locked={};
   state.hasTriggerRandom=false;
-  // 修复bug：七星彩锁数组固定7位布尔
   state.qxcLocked=[false,false,false,false,false,false,false];
   LOT[state.type].groups.forEach(g=>{state.sel[g.id]=[]});
   if(state.type==='qxc'){
@@ -126,12 +131,8 @@ function calcBets(){
   return comb(f,cfg.groups[0].count)*comb(b,cfg.groups[1].count);
 }
 
-// ------------------------------
-// 【工具函数抽离】
-// ------------------------------
 function pad2(n){return n<10?'0'+n:''+n;}
 
-/** 生成号码球DOM元素，支持锁标记 */
 function createBall(num, colorClass, isLocked=false){
   const d=document.createElement('div');
   d.className='ball '+colorClass;
@@ -145,16 +146,10 @@ function createBall(num, colorClass, isLocked=false){
   return d;
 }
 
-// ------------------------------
-// 【拆分render各个子模块】
-// ------------------------------
-
-/** 渲染顶部描述提示文字 */
 function renderHeaderTip(cfg){
   rd.innerText=cfg.desc;
 }
 
-/** 渲染普通彩种(双色球/大乐透)预览区 ra */
 function renderNormalPreview(cfg){
   ra.innerHTML='';
   const wrap=document.createElement('div');
@@ -195,7 +190,6 @@ function renderNormalPreview(cfg){
   }
 }
 
-/** 渲染七星彩预览区 qp */
 function renderQxcPreview(){
   qp.innerHTML='';
   const wrap=document.createElement('div'); wrap.className='bw';
@@ -243,7 +237,6 @@ function renderQxcPreview(){
   qp.appendChild(wrap);
 }
 
-/** 总入口：渲染预览区域（上方已选号码） */
 function renderPreviewArea(cfg){
   ra.innerHTML='';
   qp.innerHTML='';
@@ -258,7 +251,6 @@ function renderPreviewArea(cfg){
   }
 }
 
-/** 渲染普通彩种下方选号网格面板 */
 function renderNormalSelectGrid(cfg){
   pa.innerHTML='';
   cfg.groups.forEach(g=>{
@@ -284,7 +276,6 @@ function renderNormalSelectGrid(cfg){
   });
 }
 
-/** 渲染七星彩下方选号网格面板 */
 function renderQxcSelectGrid(){
   pa.innerHTML='';
   const os=document.createElement('div');
@@ -322,7 +313,6 @@ function renderQxcSelectGrid(){
   bs.appendChild(bg2); pa.appendChild(bs);
 }
 
-/** 【顶层总调度render】，现在很薄，只做分发 */
 function render(){
   const cfg=LOT[state.type];
   renderHeaderTip(cfg);
@@ -338,16 +328,11 @@ function renderSelectPanel(cfg){
   }
 }
 
-// ------------------------------
-// handleSelect 手动点击号码
-// ------------------------------
 function handleSelect(g,num){
   const cur=state.sel[g.id];
   const idx=cur.indexOf(num);
   if(idx>-1){
-    // 取消选中
     cur.splice(idx,1);
-    // 如果存在锁，同步移除锁
     if(state.locked[g.id]){
       const lidx = state.locked[g.id].indexOf(num);
       if(lidx>-1) state.locked[g.id].splice(lidx,1);
@@ -359,7 +344,6 @@ function handleSelect(g,num){
       return;
     }
     cur.push(num);
-    // 手动新增号码：此时不上锁，等下一次机选才上锁
   }
   render();
   setTimeout(()=>{
@@ -380,12 +364,8 @@ function handleSelect(g,num){
   },10);
 }
 
-// ------------------------------
-// 改造 randomFill 机选填满核心逻辑
-// ------------------------------
 function randomFill(){
   const cfg=LOT[state.type];
-  // 复式：原始逻辑，全部随机，清空锁状态
   if(state.mode==='multi'){
     state.locked={};
     state.hasTriggerRandom=false;
@@ -411,10 +391,7 @@ function randomFill(){
     return;
   }
 
-  // ==========下面全部是单式模式==========
   if(state.type==='qxc'){
-    // 七星彩单式
-    // 第一次点击机选：把当前不为null的位置标记上锁
     if(!state.hasTriggerRandom){
       for(let i=0;i<6;i++){
         if(state.sel['orange'][i]!==null) state.qxcLocked[i]=true;
@@ -422,14 +399,12 @@ function randomFill(){
       if(state.sel['blue'][0]!==null) state.qxcLocked[6]=true;
       state.hasTriggerRandom=true;
     }
-    // 判断是否全部上锁
     const allLock = state.qxcLocked.every(b=>b===true);
     if(allLock){
       toast('所有号码已手动锁定，无需机选填充');
       render();
       return;
     }
-    // 只改写未上锁位置
     for(let i=0;i<6;i++){
       if(!state.qxcLocked[i]){
         state.sel['orange'][i]=Math.floor(Math.random()*10);
@@ -442,21 +417,17 @@ function randomFill(){
     return;
   }
 
-  // --------双色球/大乐透单式--------
   const g1 = cfg.groups[0];
   const g2 = cfg.groups[1];
-  // 初始化locked对象
   if(!state.locked[g1.id]) state.locked[g1.id]=[];
   if(!state.locked[g2.id]) state.locked[g2.id]=[];
 
-  // 第一次执行机选：将当前已经选中号码打入锁集合
   if(!state.hasTriggerRandom){
     state.locked[g1.id] = [...state.sel[g1.id]];
     state.locked[g2.id] = [...state.sel[g2.id]];
     state.hasTriggerRandom=true;
   }
 
-  // 判断两组是否全部锁定
   const g1AllLock = state.locked[g1.id].length >= g1.count;
   const g2AllLock = state.locked[g2.id].length >= g2.count;
   if(g1AllLock && g2AllLock){
@@ -465,11 +436,9 @@ function randomFill(){
     return;
   }
 
-  // 保留locked，删除sel里面不在locked中的号码
   state.sel[g1.id] = [...state.locked[g1.id]];
   state.sel[g2.id] = [...state.locked[g2.id]];
 
-  // 给组1补齐
   if(state.sel[g1.id].length < g1.count){
     let pool1=[];
     for(let i=g1.min;i<=g1.max;i++){
@@ -482,7 +451,6 @@ function randomFill(){
       pool1.splice(ri,1);
     }
   }
-  // 给组2补齐
   if(state.sel[g2.id].length < g2.count){
     let pool2=[];
     for(let i=g2.min;i<=g2.max;i++){
@@ -737,12 +705,23 @@ function save(){
   localStorage.setItem('solo_lotto_v24',JSON.stringify(state.list));
 }
 
+// ===== 问题1 & 2：记录收起修复 =====
 hb.onclick=()=>{
   if(hp.classList.contains('show')){
     hp.classList.remove('show');hb.classList.remove('active');
     mp.classList.remove('hidden');
     document.getElementById('bottom-btns').style.display='flex';
     updateAppendBtn();
+
+    // 仅 ssq/dlt：延迟两帧重绘预览区 + 回填选号区高亮
+    if (state.type !== 'qxc') {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          renderPreviewArea(LOT[state.type]);
+          renderNormalSelectGrid(LOT[state.type]);
+        });
+      });
+    }
   }else{
     hp.classList.add('show');hb.classList.add('active');
     mp.classList.add('hidden');
@@ -751,41 +730,71 @@ hb.onclick=()=>{
   }
 };
 
+// ===== 问题3：切换彩种保留模式偏好 =====
 document.querySelectorAll('.tab').forEach(tab=>{
   tab.onclick=()=>{
+    if (state.type === 'ssq' || state.type === 'dlt') {
+      modeCache[state.type] = state.mode;
+    }
+
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
     tab.classList.add('active');
-    state.type=tab.dataset.type;
-    state.mode='single';
-    document.querySelectorAll('.mb').forEach(b=>b.classList.toggle('active',b.dataset.mode==='single'));
-    initState();render();renderList();updateBadge();
-    hp.classList.remove('show');hb.classList.remove('active');
+    state.type = tab.dataset.type;
+
+    if (state.type === 'qxc') {
+      state.mode = 'single';
+    } else {
+      state.mode = modeCache[state.type] || 'single';
+    }
+
+    document.querySelectorAll('.mb').forEach(b=>b.classList.toggle('active', b.dataset.mode === state.mode));
+
+    initState();
+
+    if (state.type !== 'qxc') {
+      modeSelCache[state.type].single = { sel: {}, locked: {} };
+      modeSelCache[state.type].multi = { sel: {}, locked: {} };
+    }
+
+    render(); renderList(); updateBadge();
+    hp.classList.remove('show'); hb.classList.remove('active');
     mp.classList.remove('hidden');
     document.getElementById('bottom-btns').style.display='flex';
     updateAppendBtn();
   };
 });
 
+// ===== 问题4：单复式互切恢复快照 =====
 document.querySelectorAll('.mb').forEach(btn=>{
   btn.onclick=()=>{
-    if(state.type==='qxc'){toast('七星彩暂无复式投注');return;}
+    if (state.type === 'qxc') { toast('七星彩暂无复式投注'); return; }
+
+    const newMode = btn.dataset.mode;
+    if (state.mode === newMode) return;
+
+    const cfg = LOT[state.type];
+    const oldMode = state.mode;
+
+    modeSelCache[state.type][oldMode].sel = JSON.parse(JSON.stringify(state.sel));
+    modeSelCache[state.type][oldMode].locked = JSON.parse(JSON.stringify(state.locked));
+
+    state.mode = newMode;
+    const target = modeSelCache[state.type][newMode];
+
+    if (!target.sel || Object.keys(target.sel).length === 0) {
+      state.sel = {};
+      state.locked = {};
+      cfg.groups.forEach(g=>{ state.sel[g.id] = []; });
+    } else {
+      state.sel = JSON.parse(JSON.stringify(target.sel));
+      state.locked = JSON.parse(JSON.stringify(target.locked));
+    }
+
     document.querySelectorAll('.mb').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    state.mode=btn.dataset.mode;
-    // 切复式，清空锁全部状态
-    if(state.mode==='multi'){
-      state.locked={};
-      state.hasTriggerRandom=false;
-      state.qxcLocked=[false,false,false,false,false,false,false];
-    }
-    const cfg=LOT[state.type];
-    cfg.groups.forEach(g=>{
-      if(state.mode==='single'&&state.sel[g.id].length>g.count){
-        state.sel[g.id]=state.sel[g.id].slice(0,g.count);
-      }
-    });
-    render();updateBadge();
-    if(hp.classList.contains('show')) renderList();
+
+    render(); updateBadge();
+    if (hp.classList.contains('show')) renderList();
   };
 });
 
