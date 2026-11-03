@@ -55,6 +55,7 @@ body{font-family:-apple-system,sans-serif;background:var(--bg);color:#333;displa
 <div class="btns" id="bottom-btns"><button class="btn br" id="rb">🎲 机选填满</button><button class="btn bs" id="cf">✅ 确认选号</button></div>
 <div class="toast" id="toast">提示</div>
 <script>
+setTimeout(() => { if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SplashScreen) { window.Capacitor.Plugins.SplashScreen.hide(); } }, 1500);
 const LOT={
   ssq:{name:'双色球',desc:'红球(1-33)选6个，蓝球(1-16)选1个',groups:[
     {id:'red',name:'红球',count:6,maxMulti:20,min:1,max:33,colorClass:'red'},
