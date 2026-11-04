@@ -205,9 +205,11 @@ function renderQxcPreview(){
       lock.className='pb-lock'; lock.innerText='🔒';
       b.appendChild(lock);
     }
-    b.onclick=()=>{
-      if(act&&v!==null) state.sel['orange'][i]=null;
-      else state.qxcActive={group:'orange',pos:i};
+        b.onclick=()=>{
+      if(act&&v!==null){
+        state.sel['orange'][i]=null;
+        state.qxcLocked[i]=false;
+      }else state.qxcActive={group:'orange',pos:i};
       render();
     };
     og.appendChild(b);
@@ -227,9 +229,11 @@ function renderQxcPreview(){
     lock.className='pb-lock'; lock.innerText='🔒';
     b.appendChild(lock);
   }
-  b.onclick=()=>{
-    if(act&&v!==null) state.sel['blue'][0]=null;
-    else state.qxcActive={group:'blue',pos:0};
+    b.onclick=()=>{
+    if(act&&v!==null){
+      state.sel['blue'][0]=null;
+      state.qxcLocked[6]=false;
+    }else state.qxcActive={group:'blue',pos:0};
     render();
   };
   bg.appendChild(b);
