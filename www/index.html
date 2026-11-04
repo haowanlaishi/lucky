@@ -660,14 +660,31 @@ function renderList(){
 }
 
 function bindSwipe(item){
-  let sx=0,cx=0,sw=false;
+  let sx=0,cx=0,sy=0,sw=false,dir=null;
+
   item.addEventListener('touchstart',e=>{
     document.querySelectorAll('.hi.swiped').forEach(el=>{if(el!==item)el.classList.remove('swiped');});
-    sx=e.touches[0].clientX;sw=false;item.style.transition='none';
+    sx=e.touches[0].clientX;
+    sy=e.touches[0].clientY;
+    sw=false;
+    dir=null;
+    item.style.transition='none';
   },{passive:true});
+
   item.addEventListener('touchmove',e=>{
     cx=e.touches[0].clientX;
     const dx=cx-sx;
+    const dy=e.touches[0].clientY-sy;
+
+    if(dir===null){
+      if(Math.abs(dx)>6||Math.abs(dy)>6){
+        dir=Math.abs(dx)>Math.abs(dy)?'h':'v';
+      }
+    }
+    if(dir==='v'){
+      return;
+    }
+
     if(Math.abs(dx)>10)sw=true;
     if(item.classList.contains('swiped')){
       let t=-70+dx;
@@ -678,8 +695,17 @@ function bindSwipe(item){
       item.style.transform='translateX('+t+'px)';
     }
   },{passive:true});
+
   item.addEventListener('touchend',()=>{
     item.style.transition='transform .3s cubic-bezier(.25,.8,.25,1)';
+
+    if(dir==='v'){
+      item.style.transform='';
+      dir=null;
+      sw=false;
+      return;
+    }
+
     const dx=cx-sx;
     if(sw){
       if(item.classList.contains('swiped')){
@@ -690,8 +716,10 @@ function bindSwipe(item){
         else item.style.transform='';
       }
     }else item.style.transform='';
+
     setTimeout(()=>{sw=false;},50);
   });
+
   item.addEventListener('click',e=>{
     if(sw)e.stopPropagation();
     else if(item.classList.contains('swiped')){
